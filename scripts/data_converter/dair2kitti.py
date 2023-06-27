@@ -2,12 +2,17 @@
 Modified from https://github.com/AIR-THU/DAIR-V2X/blob/main/tools/dataset_converter/dair2kitti.py
 '''
 import argparse
+import sys
 import os
+#print(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from scripts.data_converter.gen_kitti.label_lidarcoord_to_cameracoord import gen_lidar2cam
 from scripts.data_converter.gen_kitti.label_json2kitti import json2kitti, rewrite_label, label_filter
 from scripts.data_converter.gen_kitti.gen_calib2kitti import gen_calib2kitti
 from scripts.data_converter.gen_kitti.gen_ImageSets_from_split_data import gen_ImageSet_from_split_data
 from scripts.data_converter.gen_kitti.utils import pcd2bin
+
 
 parser = argparse.ArgumentParser("Generate the Kitti Format Data")
 parser.add_argument("--source-root", type=str, default="data/dair-v2x-i", help="Raw data root about DAIR-V2X.")

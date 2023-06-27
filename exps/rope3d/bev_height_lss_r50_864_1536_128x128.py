@@ -2,6 +2,8 @@
 from argparse import ArgumentParser, Namespace
 
 import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import mmcv
 import pytorch_lightning as pl
 import torch
@@ -369,15 +371,29 @@ def main(args: Namespace) -> None:
     
     model = BEVHeightLightningModel(**vars(args))
     checkpoint_callback = ModelCheckpoint(dirpath='./outputs/bev_height_lss_r50_864_1536_128x128/checkpoints', filename='{epoch}', every_n_epochs=5, save_last=True, save_top_k=-1)
-    trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint_callback])
+   
     if args.evaluate:
+        trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint_callback])
         for ckpt_name in os.listdir(args.ckpt_path):
             model_pth = os.path.join(args.ckpt_path, ckpt_name)
             trainer.test(model, ckpt_path=model_pth)
     else:
-        backup_codebase(os.path.join('./outputs/bev_height_lss_r50_864_1536_128x128', 'backup'))
-        trainer.fit(model)
-        
+        if args.ckpt_path == None:
+            trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint_callback])
+            backup_codebase(os.path.join('./outputs/rope3d/bev_height_lss_r50_864_1536_128x128', 'backup'))
+            trainer.fit(model)
+        else:
+            print("reuse checkpoint:", args.ckpt_path)
+            #trainer = Trainer(resume_from_checkpoint='some/path/to/my_checkpoint.ckpt')
+            if not args.ckpt_path.endswith(".ckpt"):
+                raise TypeError(f"file path should be a ckpt file")
+            # model = model.load_from_checkpoint(args.ckpt_path)
+            backup_codebase(os.path.join('./outputs/rope3d/bev_height_lss_r50_864_1536_128x128', 'backup'))
+            model = model.load_from_checkpoint(args.ckpt_path)
+            trainer = pl.Trainer(resume_from_checkpoint=args.ckpt_path, gpus = args.gpus ,callbacks=[checkpoint_callback])
+            print("callbacks_ckpt save to ./outputs/bev_height_lss_r50_864_1536_128x128/checkpoints")
+            trainer.fit(model)
+            
 def run_cli():
     parent_parser = ArgumentParser(add_help=False)
     parent_parser = pl.Trainer.add_argparse_args(parent_parser)
@@ -392,6 +408,7 @@ def run_cli():
                                default=0,
                                help='seed for initializing training.')
     parent_parser.add_argument('--ckpt_path', type=str)
+
     parser = BEVHeightLightningModel.add_model_specific_args(parent_parser)
     parser.set_defaults(
         profiler='simple',
@@ -403,7 +420,7 @@ def run_cli():
         limit_val_batches=0,
         enable_checkpointing=True,
         precision=32,
-        default_root_dir='./outputs/bev_height_lss_r50_864_1536_128x128')
+        default_root_dir='./outputs/rope3d/bev_height_lss_r50_864_1536_128x128')
     args = parser.parse_args()
     main(args)
 

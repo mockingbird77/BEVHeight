@@ -319,3 +319,69 @@ def result2kitti_rope3d(results_file, results_path, dair_root, gt_label_path, de
             demo_file = os.path.join(results_path, "demo", "{:06d}".format(sample_id) + ".jpg")
             pcd_vis(bboxes, demo_file, label_path)
     return os.path.join(results_path, "data")
+
+def result2kitti_road3d(results_file, results_path, dair_root, gt_label_path, demo=False):
+    with open(results_file,'r',encoding='utf8')as fp:
+        results = json.load(fp)["results"]
+    with open("data/rope3d-kitti/map_token2id.json") as fp:
+        token2sample = json.load(fp)
+
+    for sample_token in tqdm(results.keys()):
+        sample_id = int(token2sample[sample_token])
+        src_denorm_file = os.path.join(dair_root, "training/denorm", sample_token + ".txt")
+        src_calib_file = os.path.join(dair_root, "training/calib", sample_token + ".txt")
+        if not os.path.exists(src_denorm_file):
+            src_denorm_file = os.path.join(dair_root, "validation/denorm", sample_token + ".txt")
+            src_calib_file = os.path.join(dair_root, "validation/calib", sample_token + ".txt")
+  
+        Tr_velo_to_cam, r_velo2cam, t_velo2cam = get_velo2cam(src_denorm_file)
+        camera_intrinsic = load_calib(src_calib_file)
+        camera_intrinsic = np.concatenate([camera_intrinsic, np.zeros((camera_intrinsic.shape[0], 1))], axis=1)
+        preds = results[sample_token]
+        pred_lines = []
+        bboxes = []
+        for pred in preds:
+            loc = pred["translation"]
+            dim = pred["size"]
+            yaw_lidar = pred["box_yaw"]
+            detection_score = pred["detection_score"]
+            class_name = pred["detection_name"]
+            
+            w, l, h = dim[0], dim[1], dim[2]
+            x, y, z = loc[0], loc[1], loc[2]            
+            bottom_center = [x, y, z]
+            obj_size = [l, w, h]
+            bottom_center_in_cam = r_velo2cam * np.matrix(bottom_center).T + t_velo2cam
+            alpha, yaw = get_camera_3d_8points(
+                obj_size, yaw_lidar, bottom_center, bottom_center_in_cam, r_velo2cam, t_velo2cam
+            )
+            yaw  = 0.5 * np.pi - yaw_lidar
+
+            cam_x, cam_y, cam_z = convert_point(np.array([x, y, z, 1]).T, Tr_velo_to_cam)
+            box = get_lidar_3d_8points([w, l, h], yaw_lidar, [x, y, z + h/2])
+            box2d = bbbox2bbox(box, Tr_velo_to_cam, camera_intrinsic)
+            if detection_score > 0.45 and class_name in category_map_rope3d.keys():
+                i1 = category_map_rope3d[class_name]
+                i2 = str(0)
+                i3 = str(0)
+                i4 = str(round(alpha, 4))
+                i5, i6, i7, i8 = (
+                    str(round(box2d[0], 4)),
+                    str(round(box2d[1], 4)),
+                    str(round(box2d[2], 4)),
+                    str(round(box2d[3], 4)),
+                )
+                i9, i11, i10 = str(round(h, 4)), str(round(w, 4)), str(round(l, 4))
+                i12, i13, i14 = str(round(cam_x, 4)), str(round(cam_y, 4)), str(round(cam_z, 4))
+                i15 = str(round(yaw, 4))
+                line = [i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, str(round(detection_score, 4))]
+                pred_lines.append(line)
+                bboxes.append(box)
+        os.makedirs(os.path.join(results_path, "data"), exist_ok=True)
+        write_kitti_in_txt(pred_lines, os.path.join(results_path, "data", "{:06d}".format(sample_id) + ".txt"))       
+        if demo:
+            os.makedirs(os.path.join(results_path, "demo"), exist_ok=True)
+            label_path = os.path.join(gt_label_path, "{:06d}".format(sample_id) + ".txt")
+            demo_file = os.path.join(results_path, "demo", "{:06d}".format(sample_id) + ".jpg")
+            pcd_vis(bboxes, demo_file, label_path)
+    return os.path.join(results_path, "data")

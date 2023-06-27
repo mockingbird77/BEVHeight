@@ -125,17 +125,18 @@ def get_annos(label_path, Tr_cam2lidar):
                 annos.append(anno)
     return annos
 
-def generate_info_rope3d(rope3d_root, split='train', img_id=0):
+def generate_info_rope3d(road_root, split='train', img_id=0):
     if split == 'train':
-        src_dir = os.path.join(rope3d_root, "training")
-        img_path = ["training-image_2a", "training-image_2b", "training-image_2c", "training-image_2d"]
+        print("road dataset is just used as val dataset")
+        exit()
     else:
-        src_dir = os.path.join(rope3d_root, "validation")
-        img_path = ["validation-image_2"]
+        src_dir = road_root
+        img_path = ["image"]
     label_path = os.path.join(src_dir, "label_2")
     calib_path = os.path.join(src_dir, "calib")
     denorm_path = os.path.join(src_dir, "denorm")
     split_txt = os.path.join(src_dir, "train.txt" if split=='train' else 'val.txt')
+
     idx_list = [x.strip() for x in open(split_txt).readlines()]
     print("len(idx_list)",len(idx_list))
     idx_list_valid = []
@@ -149,10 +150,10 @@ def generate_info_rope3d(rope3d_root, split='train', img_id=0):
     #             break
 
 
-    img_path = ["validation-image_2", "training-image_2a", "training-image_2b", "training-image_2c", "training-image_2d"]
+    img_path = ["image_2"]
     for index in idx_list:
         for sub_img_path in img_path:
-            img_file = os.path.join(rope3d_root, sub_img_path, index + ".jpg")
+            img_file = os.path.join(road_root, sub_img_path, index + ".png")
             if os.path.exists(img_file):
                 idx_list_valid.append((sub_img_path, index))
                 break
@@ -162,15 +163,12 @@ def generate_info_rope3d(rope3d_root, split='train', img_id=0):
 
     for idx in tqdm(range(len(idx_list_valid))):
         sub_img_path, index = idx_list_valid[idx]
-
-
-
-        img_file = os.path.join(sub_img_path, index + ".jpg")
+        img_file = os.path.join(sub_img_path, index + ".png")
         
         training_or_val = sub_img_path.split("-")[0]
-        label_file = os.path.join(rope3d_root, training_or_val, "label_2",index + ".txt")
-        calib_file = os.path.join(rope3d_root, training_or_val, "calib",index + ".txt")
-        denorm_file = os.path.join(rope3d_root, training_or_val,"denorm", index + ".txt")
+        label_file = os.path.join(road_root, "label_2",index + ".txt")
+        calib_file = os.path.join(road_root, "calib",index + ".txt")
+        denorm_file = os.path.join(road_root, "denorm", index + ".txt")
         info = dict()
         cam_info = dict()
         info['sample_token'] = index
@@ -237,8 +235,8 @@ def generate_info_rope3d(rope3d_root, split='train', img_id=0):
     return infos
 
 def main():
-    rope3d_root = "data/rope3d"
-    train_infos = generate_info_rope3d(rope3d_root, split='train')
+    rope3d_root = "/data/bevheight/BEVHeight/data/road/314"
+    #train_infos = generate_info_rope3d(rope3d_root, split='train')
     val_infos = generate_info_rope3d(rope3d_root, split='val')
     
 
@@ -251,8 +249,8 @@ def main():
     
 
     
-    mmcv.dump(train_infos, './data/rope3d/rope3d_12hz_infos_train.pkl')
-    mmcv.dump(val_infos, './data/rope3d/rope3d_12hz_infos_val.pkl')
+    #mmcv.dump(train_infos, './data/road/314/rope3d_12hz_infos_train.pkl')
+    mmcv.dump(val_infos, './data/road/314/rope3d_12hz_infos_val.pkl')
 
     # mmcv.dump(train_infos, './data/rope3d/order_split/8_2_increase/rope3d_12hz_infos_train.pkl')
     # mmcv.dump(val_infos, './data/rope3d/order_split/8_2_increase/rope3d_12hz_infos_val.pkl')

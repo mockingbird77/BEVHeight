@@ -10,7 +10,7 @@ import pyquaternion
 from nuscenes.utils.data_classes import Box
 from pyquaternion import Quaternion
 
-from evaluators.result2kitti import result2kitti, result2kitti_rope3d, kitti_evaluation
+from evaluators.result2kitti import result2kitti, result2kitti_rope3d, kitti_evaluation, result2kitti_road3d
 
 __all__ = ['RoadSideEvaluator']
 
@@ -92,15 +92,21 @@ class RoadSideEvaluator():
         out_dir=None,
         pipeline=None,
     ):
+        # results is the predict results,  the img_metas is the gt data
         result_files, tmp_dir = self.format_results(results, img_metas,
                                                     result_names,
                                                     jsonfile_prefix)
         print(result_files, tmp_dir)
         results_path = "outputs" 
+        # read the nusc_result.json ,and turn the result to kitti format and save it to the outputs/data path.
         if 'dair' in self.data_root:
             pred_label_path = result2kitti(result_files["img_bbox"], results_path, self.data_root, self.gt_label_path, demo=False)
-        else:
+        elif 'rope' in self.data_root:
             pred_label_path = result2kitti_rope3d(result_files["img_bbox"], results_path, self.data_root, self.gt_label_path, demo=False)
+        else:
+            pred_label_path = result2kitti_road3d(result_files["img_bbox"], results_path, self.data_root, self.gt_label_path, demo=False)
+
+        # calculate the metrics, compare the predict label  and gt in kitii format.
         kitti_evaluation(pred_label_path, self.gt_label_path, current_classes=self.current_classes, metric_path="outputs/metrics")
 
     def _format_bbox(self, results, img_metas, jsonfile_prefix=None):

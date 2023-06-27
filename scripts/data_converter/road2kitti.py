@@ -145,13 +145,18 @@ def load_boxes(label_file):
     return boxes
             
 def main(src_root, dest_root, split='train', img_id=0):
-    if split == 'train':
-        src_dir = os.path.join(src_root, "training")
-        img_path_list = ["training-image_2a", "training-image_2b", "training-image_2c", "training-image_2d"]
-    else:
-        src_dir = os.path.join(src_root, "validation")
-        img_path_list = ["validation-image_2"]
-        
+    # if split == 'train':
+    #     src_dir = os.path.join(src_root, "training")
+    #     img_path_list = ["training-image_2a", "training-image_2b", "training-image_2c", "training-image_2d"]
+    # else:
+    #     src_dir = os.path.join(src_root, "validation")
+    #     img_path_list = ["validation-image_2"]
+    
+
+    src_dir = os.path.join(src_root)
+    img_path_list = ["image_2"]
+
+
     os.makedirs(dest_root, exist_ok=True)
     os.makedirs(os.path.join(dest_root, "training/image_2"), exist_ok=True)
     os.makedirs(os.path.join(dest_root, "training/label_2"), exist_ok=True)
@@ -165,19 +170,23 @@ def main(src_root, dest_root, split='train', img_id=0):
     split_txt = os.path.join(src_dir, "train.txt" if split=='train' else 'val.txt')
     idx_list = [x.strip() for x in open(split_txt).readlines()]
     idx_list_valid = []
+
     for index in idx_list:
-        for img_path in img_path_list:
-            src_img_path = os.path.join(src_dir, "../", img_path)
-            img_file = os.path.join(src_img_path, index + ".jpg")
+        for sub_img_path in img_path_list:
+            img_file = os.path.join(src_root, sub_img_path, index + ".png")
+            print("img_file",img_file)
             if os.path.exists(img_file):
-                idx_list_valid.append(index)
+                idx_list_valid.append((index))
                 break
+
+
     img_id_list = []
     map_token2id = dict()
     for index in tqdm(idx_list_valid):
         for img_path in img_path_list:
-            src_img_path = os.path.join(src_dir, "../", img_path)
-            img_file = os.path.join(src_img_path, index + ".jpg")
+            src_img_path = os.path.join(src_dir, img_path)
+            #源文件是jpg文件
+            img_file = os.path.join(src_img_path, index + ".png")
             if os.path.exists(img_file):
                 src_img_file = img_file
                 break

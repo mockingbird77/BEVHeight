@@ -1,1 +1,8 @@
 *.pyc
+data/
+outputs/
+lightning_logs/
+build/
+BEVHeight.egg-info/
+.vscode/
+ops/voxel_pooling/voxel_pooling_ext.cpython-38-x86_64-linux-gnu.so

@@ -28,14 +28,14 @@ img_conf = dict(img_mean=[123.675, 116.28, 103.53],
                 img_std=[58.395, 57.12, 57.375],
                 to_rgb=True)
 
-data_root = "data/dair-v2x-i/"
-gt_label_path = "data/dair-v2x-i-kitti/training/label_2"
+data_root = "data/road/314"
+gt_label_path = "data/road-kitti/314-kitti/training/label_2"
 
 backbone_conf = {
     'x_bound': [0, 102.4, 0.8],
     'y_bound': [-51.2, 51.2, 0.8],
     'z_bound': [-5, 3, 8],
-    'd_bound': [-2.0, 0.0, 90],
+    'd_bound': [-1.5, 3.0, 180],
     'final_dim':
     final_dim,
     'output_channels':
@@ -201,7 +201,7 @@ class BEVHeightLightningModel(LightningModule):
         mmcv.mkdir_or_exist(default_root_dir)
         self.default_root_dir = default_root_dir
         self.evaluator = RoadSideEvaluator(class_names=self.class_names,
-                                           current_classes=["Car", "Pedestrian", "Cyclist"],
+                                           current_classes=["Car", "Bus"],
                                            data_root=data_root,
                                            gt_label_path=gt_label_path,
                                            output_dir=self.default_root_dir)
@@ -258,7 +258,7 @@ class BEVHeightLightningModel(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         return self.eval_step(batch, batch_idx, 'val')
-# here need 
+
     def validation_epoch_end(self, validation_step_outputs):
         all_pred_results = list()
         all_img_metas = list()
@@ -308,7 +308,7 @@ class BEVHeightLightningModel(LightningModule):
             ida_aug_conf=self.ida_aug_conf,
             classes=self.class_names,
             data_root=self.data_root,
-            info_path=os.path.join(data_root, 'dair_12hz_infos_train.pkl'),
+            info_path=os.path.join(data_root, 'rope3d_12hz_infos_train.pkl'),
             is_train=True,
             use_cbgs=self.data_use_cbgs,
             img_conf=self.img_conf,
@@ -336,7 +336,7 @@ class BEVHeightLightningModel(LightningModule):
             ida_aug_conf=self.ida_aug_conf,
             classes=self.class_names,
             data_root=self.data_root,
-            info_path=os.path.join(data_root, 'dair_12hz_infos_val.pkl'),
+            info_path=os.path.join(data_root, 'rope3d_12hz_infos_val.pkl'),
             is_train=False,
             img_conf=self.img_conf,
             num_sweeps=self.num_sweeps,
@@ -371,16 +371,29 @@ def main(args: Namespace) -> None:
     
     model = BEVHeightLightningModel(**vars(args))
     checkpoint_callback = ModelCheckpoint(dirpath='./outputs/bev_height_lss_r50_864_1536_128x128/checkpoints', filename='{epoch}', every_n_epochs=5, save_last=True, save_top_k=-1)
-    trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint_callback])
+   
     if args.evaluate:
+        trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint_callback])
         for ckpt_name in os.listdir(args.ckpt_path):
-            
             model_pth = os.path.join(args.ckpt_path, ckpt_name)
             trainer.test(model, ckpt_path=model_pth)
     else:
-        backup_codebase(os.path.join('./outputs/bev_height_lss_r50_864_1536_128x128', 'backup'))
-        trainer.fit(model)
-        
+        if args.ckpt_path == None:
+            trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint_callback])
+            backup_codebase(os.path.join('./outputs/rope3d/bev_height_lss_r50_864_1536_128x128', 'backup'))
+            trainer.fit(model)
+        else:
+            print("reuse checkpoint:", args.ckpt_path)
+            #trainer = Trainer(resume_from_checkpoint='some/path/to/my_checkpoint.ckpt')
+            if not args.ckpt_path.endswith(".ckpt"):
+                raise TypeError(f"file path should be a ckpt file")
+            # model = model.load_from_checkpoint(args.ckpt_path)
+            backup_codebase(os.path.join('./outputs/rope3d/bev_height_lss_r50_864_1536_128x128', 'backup'))
+            model = model.load_from_checkpoint(args.ckpt_path)
+            trainer = pl.Trainer(resume_from_checkpoint=args.ckpt_path, gpus = args.gpus ,callbacks=[checkpoint_callback])
+            print("callbacks_ckpt save to ./outputs/bev_height_lss_r50_864_1536_128x128/checkpoints")
+            trainer.fit(model)
+            
 def run_cli():
     parent_parser = ArgumentParser(add_help=False)
     parent_parser = pl.Trainer.add_argparse_args(parent_parser)
@@ -395,18 +408,19 @@ def run_cli():
                                default=0,
                                help='seed for initializing training.')
     parent_parser.add_argument('--ckpt_path', type=str)
+
     parser = BEVHeightLightningModel.add_model_specific_args(parent_parser)
     parser.set_defaults(
         profiler='simple',
         deterministic=False,
-        max_epochs=100,
+        max_epochs=70,
         accelerator='ddp',
         num_sanity_val_steps=0,
         gradient_clip_val=5,
         limit_val_batches=0,
         enable_checkpointing=True,
         precision=32,
-        default_root_dir='./outputs/bev_height_lss_r50_864_1536_128x128')
+        default_root_dir='./outputs/rope3d/bev_height_lss_r50_864_1536_128x128')
     args = parser.parse_args()
     main(args)
 

@@ -100,7 +100,8 @@ def get_denorm(rotation_matrix, translation):
     denorm = -1 * equation_plane(ground_points_cam)
     
     return denorm
-
+# here author didn't use timestamp?
+ 
 def generate_info_dair(dair_root, split):    
     infos = mmcv.load("data/single-infrastructure-split-data.json")
     split_list = infos[split]

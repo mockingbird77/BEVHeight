@@ -352,7 +352,7 @@ class LSSFPN(nn.Module):
         points = combine_ego.view(batch_size, num_cams, 1, 1, 1, 4,
                               4).matmul(points)
         return points
-    
+    # 锥点由图像坐标系向ego坐标系进行坐标转化
     def get_geometry(self, sensor2ego_mat, sensor2virtual_mat, intrin_mat, ida_mat, reference_heights, bda_mat):
         """Transfer points from camera coord to ego coord.
 

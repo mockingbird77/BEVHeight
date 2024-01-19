@@ -14,8 +14,8 @@ category_map = {'car': 'Car', 'van': 'Car', 'truck': 'Bus', 'bus': 'Bus', 'pedes
 
 def parse_option():
     parser = argparse.ArgumentParser('Convert rope3D dataset to standard kitti format', add_help=False)
-    parser.add_argument('--source-root', type=str, default="data/rope3d", help='root path to rope3d dataset')
-    parser.add_argument('--target-root', type=str, default="data/rope3d-kitti", help='root path to rope3d dataset in kitti format')
+    parser.add_argument('--source-root', type=str, default="/data/bevheight/BEVHeight/data/road/314", help='root path to rope3d dataset')
+    parser.add_argument('--target-root', type=str, default="/data/bevheight/BEVHeight/data/road-kitti/314-kitti", help='root path to rope3d dataset in kitti format')
     args = parser.parse_args()
     return args
     
@@ -178,7 +178,9 @@ def main(src_root, dest_root, split='train', img_id=0):
             if os.path.exists(img_file):
                 idx_list_valid.append((index))
                 break
+    
 
+    print("len",len(idx_list_valid))
 
     img_id_list = []
     map_token2id = dict()
@@ -198,7 +200,7 @@ def main(src_root, dest_root, split='train', img_id=0):
         dest_label_file = os.path.join(dest_root, "training/label_2", '{:06d}.txt'.format(img_id))
         dest_calib_file = os.path.join(dest_root, "training/calib", '{:06d}.txt'.format(img_id))
         dest_denorm_file = os.path.join(dest_root, "training/denorm", '{:06d}.txt'.format(img_id))
-        
+        print("index",index,"img_id",img_id)
         map_token2id[index] = "{:06d}".format(img_id)
         img_id_list.append(img_id)
         
@@ -218,7 +220,7 @@ if __name__ == "__main__":
     args = parse_option()
     source_root, target_root = args.source_root, args.target_root
     map_token2id, img_id = main(source_root, target_root, 'train')
-    map, img_id = main(source_root, target_root, 'val', img_id)
-    map_token2id.update(map)
+    map, img_id = main(source_root, target_root, 'val', img_id = 0)
+    # map_token2id.update(map)
     with open(os.path.join(target_root, 'map_token2id.json'), 'w') as file:
         json.dump(map_token2id, file)

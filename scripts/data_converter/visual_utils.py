@@ -102,6 +102,7 @@ def draw_3d_box_on_image(image, label_2_file, P2, denorm, c=(0, 255, 0), gt = Tr
           box_3d = compute_box_3d_camera(dim, location, rotation_y, denorm)
           box_2d = project_to_image(box_3d, P2)
           if gt:
+            continue
             image = draw_box_3d(image, box_2d, c=color_map[object_type])
           else:
             image = draw_box_3d(image, box_2d, c=color_map_eval[object_type])

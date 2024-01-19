@@ -51,6 +51,7 @@ class BEVHeightHead(CenterHead):
         tasks=None,
         bbox_coder=None,
         common_heads=dict(),
+        # 这里的loss_weight是指在0.25两个loss的比例，还有个train_config里面的code weight
         loss_cls=dict(type='GaussianFocalLoss', reduction='mean'),
         loss_bbox=dict(type='L1Loss', reduction='mean', loss_weight=0.25),
         gaussian_overlap=0.1,
@@ -268,6 +269,7 @@ class BEVHeightHead(CenterHead):
         return_loss = 0
         for task_id, preds_dict in enumerate(preds_dicts):
             # heatmap focal loss
+            #print("heatmap  loss",preds_dict[0]['heatmap'].shape)
             preds_dict[0]['heatmap'] = clip_sigmoid(preds_dict[0]['heatmap'])
             num_pos = heatmaps[task_id].eq(1).float().sum().item()
             cls_avg_factor = torch.clamp(reduce_mean(
@@ -302,6 +304,13 @@ class BEVHeightHead(CenterHead):
             mask *= isnotnan
             code_weights = self.train_cfg['code_weights']
             bbox_weights = mask * mask.new_tensor(code_weights)
+            # 这里的pred     是B max_obj 10
+            # pred：这是预测的回归值，通常是由模型预测的物体属性，如尺寸、位置偏移、高度、旋转等。它的形状通常为 [B, max_obj, num_attributes]，其中 B 是批大小，max_obj 是每个样本中最大的目标数量，num_attributes 是预测的属性数量。
+            # target_box：这是目标的真实回归值，与 pred 对应。它的形状与 pred 相同，表示每个目标的真实属性。
+            # bbox_weights：这是一个权重张量，用于加权不同属性的回归损失。它与 pred 和 target_box 的形状相同。通过在这里使用不同的权重，可以在计算损失时对不同属性进行加权，从而调整其对总损失的贡献。
+            # avg_factor：这是一个平均因子，用于计算损失的平均值。对于 L1 损失，通常使用所有样本的数量或有效样本的数量（排除掩码中的无效样本）。在计算平均损失时，将损失总和除以这个因子。
+            # 总结起来，loss_bbox 函数的目的是计算预测的回归值与真实目标回归值之间的 L1 损失，考虑属性权重和平均因子。这有助于训练模型，使其能够更好地预测物体属性。
+
             loss_bbox = self.loss_bbox(pred,
                                        target_box,
                                        bbox_weights,

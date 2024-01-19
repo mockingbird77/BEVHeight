@@ -22,6 +22,9 @@ class VoxelPooling(Function):
         Returns:
             Tensor: (B, C, H, W) bev feature map.
         """
+        #     # geom_feats；(B x N x D x H x W x 3)：在ego坐标系下的坐标点；
+        # x；(B x N x D x fH x fW x C)：图像点云特征
+        
         assert geom_xyz.is_contiguous()
         assert input_features.is_contiguous()
         # no gradient for input_features and geom_feats

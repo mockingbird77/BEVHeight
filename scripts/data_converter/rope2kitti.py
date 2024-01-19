@@ -207,7 +207,11 @@ def main(src_root, dest_root, split='train', img_id=0):
 
 if __name__ == "__main__":
     args = parse_option()
+
     source_root, target_root = args.source_root, args.target_root
+    # 这里是先调了一遍生成training的文件，然后又调了一遍生成了val的文件，生成的kitti文件都是在training这个文件夹里
+    # key是原本的格式中的idx（文件名），所以如果既是training又是val的话就会导致val覆盖training的
+    # 这里最快的解决方法是把training和val分开？
     map_token2id, img_id = main(source_root, target_root, 'train')
     map, img_id = main(source_root, target_root, 'val', img_id)
     map_token2id.update(map)

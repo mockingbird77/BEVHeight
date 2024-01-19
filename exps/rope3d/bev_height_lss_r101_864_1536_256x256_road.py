@@ -23,18 +23,17 @@ from utils.backup_files import backup_codebase
 
 H = 1080
 W = 1920
-# 输入到网络前端的H和W 
 final_dim = (864, 1536)
 img_conf = dict(img_mean=[123.675, 116.28, 103.53],
                 img_std=[58.395, 57.12, 57.375],
                 to_rgb=True)
 
-data_root = "data/rope3d/"
-gt_label_path = "data/rope3d-kitti/training/label_2"
+data_root = "data/road/314"
+gt_label_path = "data/road-kitti/314-kitti/training/label_2"
 
 backbone_conf = {
-    'x_bound': [0, 102.4, 0.8],
-    'y_bound': [-51.2, 51.2, 0.8],
+    'x_bound': [0, 102.4, 0.4],
+    'y_bound': [-51.2, 51.2, 0.4],
     'z_bound': [-5, 3, 8],
     'd_bound': [-1.5, 3.0, 180],
     'final_dim':
@@ -46,11 +45,11 @@ backbone_conf = {
     'img_backbone_conf':
     dict(
         type='ResNet',
-        depth=50,
+        depth=101,
         frozen_stages=0,
         out_indices=[0, 1, 2, 3],
         norm_eval=False,
-        init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50'),
+        init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet101'),
     ),
     'img_neck_conf':
     dict(
@@ -103,14 +102,6 @@ CLASSES = [
     'pedestrian',
     'traffic_cone',
 ]
-# 这里是多个head，然后每个head会再进行解构，所以heatmap的形状应该是
-# heatmap  loss torch.Size([B, 1, 128, 128])
-# heatmap  loss torch.Size([B, 2, 128, 128])
-# heatmap  loss torch.Size([B, 2, 128, 128])
-# heatmap  loss torch.Size([B, 1, 128, 128])
-# heatmap  loss torch.Size([B, 2, 128, 128])
-# heatmap  loss torch.Size([B, 2, 128, 128])
-
 
 TASKS = [
     dict(num_class=1, class_names=['car']),
@@ -133,43 +124,21 @@ bbox_coder = dict(
     max_num=500,
     score_threshold=0.1,
     out_size_factor=4,
-    voxel_size=[0.2, 0.2, 8],
+    voxel_size=[0.1, 0.1, 8],
     pc_range=[0, -51.2, -5, 104.4, 51.2, 3],
     code_size=9,
 )
 
-# 原本的config
-# train_cfg = dict(
-#     point_cloud_range=[0, -51.2, -5, 102.4, 51.2, 3],
-#     grid_size=[512, 512, 1],
-#     voxel_size=[0.2, 0.2, 8],
-#     out_size_factor=4,
-#     dense_reg=1,
-#     gaussian_overlap=0.1,
-#     max_objs=500,
-#     min_radius=2,
-#     code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.5],
-# )
-
-
-
-                    # preds_dict[0]['reg'],
-                    # preds_dict[0]['height'],
-                    # preds_dict[0]['dim'],
-                    # preds_dict[0]['rot'],
-                    # preds_dict[0]['vel'],
-
 train_cfg = dict(
     point_cloud_range=[0, -51.2, -5, 102.4, 51.2, 3],
-    grid_size=[512, 512, 1],
-    voxel_size=[0.2, 0.2, 8],
+    grid_size=[1024, 1024, 1],
+    voxel_size=[0.1, 0.1, 8],
     out_size_factor=4,
     dense_reg=1,
     gaussian_overlap=0.1,
     max_objs=500,
     min_radius=2,
-    # code weight[   reg  height      dim          rot       vel  ]
-    code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 5.0, 5.0, 0.5, 0.5],
+    code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.5],
 )
 
 test_cfg = dict(
@@ -179,7 +148,7 @@ test_cfg = dict(
     min_radius=[4, 12, 10, 1, 0.85, 0.175],
     score_threshold=0.1,
     out_size_factor=4,
-    voxel_size=[0.2, 0.2, 8],
+    voxel_size=[0.1, 0.1, 8],
     nms_type='circle',
     pre_max_size=1000,
     post_max_size=83,
@@ -263,30 +232,10 @@ class BEVHeightLightningModel(LightningModule):
         if isinstance(self.model, torch.nn.parallel.DistributedDataParallel):
             targets = self.model.module.get_targets(gt_boxes, gt_labels)
             detection_loss = self.model.module.loss(targets, preds)
-        else:            
-            # 弄清这里预测出来的targets是什么
-            # 每个head对应一个类，一共6个类，这里对每个类都预测出了 center， center_z,dim, rot, vel, hm.每个head其实就是多个巻积构成的fc的预测结果
-            # print("not distributedDataParallel")
+        else:
             targets = self.model.get_targets(gt_boxes, gt_labels)
-            #print("targets",targets)
-            # list[dict]  一个里面[[dict][dict][dict][dict][dict][dict]]
-            # dict里面的属性包括reg height dim rot vel heatmap
-            # reg torch.Size([4, 2, 128, 128])  表示中心点的偏移量，热图上的坐标(x, y)是离散整型，实际的中心点有精确到小数的偏移。 anno_box第1-2维offset_x offset_y
-            # height torch.Size([4, 1, 128, 128]) 表示中心点的高度 anno_box第3维z
-            # dim torch.Size([4, 3, 128, 128])  bbox的长宽高
-            # rot torch.Size([4, 2, 128, 128])  旋转角度sin(α) cos(α)
-            # vel torch.Size([4, 2, 128, 128])  velocity 速度
-            # heatmap torch.Size([4, 2, 128, 128]) 每个类别有个热力图，可以获得每个类别目标的中心 这里为什么只有2？？
-
-            # print("preds",preds[1])
-            # print("len preds",len(preds))
-            # for itemlist in preds[1]:
-            #     print("----------------------------------------------------------------------")
-            #     for key, value in itemlist.items():
-            #         print(key,value.shape)
             detection_loss = self.model.loss(targets, preds)  
         self.log('detection_loss', detection_loss)
-
         return detection_loss
 
     def eval_step(self, batch, batch_idx, prefix: str):
@@ -422,7 +371,7 @@ def main(args: Namespace) -> None:
     
     model = BEVHeightLightningModel(**vars(args))
     checkpoint_callback = ModelCheckpoint(dirpath='./outputs/bev_height_lss_r50_864_1536_128x128/checkpoints', filename='{epoch}', every_n_epochs=5, save_last=True, save_top_k=-1)
-   
+
     if args.evaluate:
         trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint_callback])
         for ckpt_name in os.listdir(args.ckpt_path):
@@ -442,9 +391,8 @@ def main(args: Namespace) -> None:
             backup_codebase(os.path.join('./outputs/rope3d/bev_height_lss_r50_864_1536_128x128', 'backup'))
             model = model.load_from_checkpoint(args.ckpt_path)
             trainer = pl.Trainer(resume_from_checkpoint=args.ckpt_path, gpus = args.gpus ,callbacks=[checkpoint_callback])
-            print("callbacks_ckpt save to ./outputs/bev_height_lss_r50_864_1536_128x128/checkpoints")
             trainer.fit(model)
-            
+        
 def run_cli():
     parent_parser = ArgumentParser(add_help=False)
     parent_parser = pl.Trainer.add_argparse_args(parent_parser)
@@ -459,7 +407,6 @@ def run_cli():
                                default=0,
                                help='seed for initializing training.')
     parent_parser.add_argument('--ckpt_path', type=str)
-
     parser = BEVHeightLightningModel.add_model_specific_args(parent_parser)
     parser.set_defaults(
         profiler='simple',

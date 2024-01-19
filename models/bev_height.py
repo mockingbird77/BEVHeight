@@ -51,6 +51,9 @@ class BEVHeight(nn.Module):
         Returns:
             tuple(list[dict]): Output results for tasks.
         """
+
+        # 这里的backbone 是指从输入图片的img 到bev feature的输出
+        # 
         if self.is_train_height and self.training:
             x, height_pred = self.backbone(x,
                                           mats_dict,

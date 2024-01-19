@@ -59,7 +59,12 @@ def read_label_bboxes(label_path, Tr_cam2lidar):
             boxes.append(box)
     return boxes
 
+
+# 这里为什么需要kitti_evaluation 要调两遍get_label_path
 def kitti_evaluation(pred_label_path, gt_label_path, current_classes=["Car", "Pedestrian", "Cyclist"], metric_path="metric"):
+    # 这里pred_label_path是outputs/data，然后从这里面获取预测出来的image_ids和pred_annos
+    # 这里的data是全部放在outputs/data下面。并且是根据这个目录下的文件index来去配对gt，所以每次要把这个目录下的数据清空下。
+    
     pred_annos, image_ids = kitti.get_label_annos(pred_label_path, return_ids=True)
     gt_annos = kitti.get_label_annos(gt_label_path, image_ids=image_ids)
     print(len(pred_annos), len(gt_annos))
@@ -323,7 +328,7 @@ def result2kitti_rope3d(results_file, results_path, dair_root, gt_label_path, de
 def result2kitti_road3d(results_file, results_path, dair_root, gt_label_path, demo=False):
     with open(results_file,'r',encoding='utf8')as fp:
         results = json.load(fp)["results"]
-    with open("data/rope3d-kitti/map_token2id.json") as fp:
+    with open("data/road-kitti/314-kitti/map_token2id.json") as fp:
         token2sample = json.load(fp)
 
     for sample_token in tqdm(results.keys()):

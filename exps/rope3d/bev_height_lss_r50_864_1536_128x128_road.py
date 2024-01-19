@@ -231,10 +231,17 @@ class BEVHeightLightningModel(LightningModule):
         preds = self(sweep_imgs, mats)
         if isinstance(self.model, torch.nn.parallel.DistributedDataParallel):
             targets = self.model.module.get_targets(gt_boxes, gt_labels)
+
             detection_loss = self.model.module.loss(targets, preds)
         else:
+            #弄清这里预测出来的targets是什么
+            print("not distributedDataParallel")
+
             targets = self.model.get_targets(gt_boxes, gt_labels)
-            detection_loss = self.model.loss(targets, preds)  
+            print("targets",targets)
+            print("preds",preds)
+            detection_loss = self.model.loss(targets, preds)
+            
         self.log('detection_loss', detection_loss)
         return detection_loss
 
